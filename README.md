@@ -1,0 +1,2 @@
+# CorrectStaple
+Word split utility
