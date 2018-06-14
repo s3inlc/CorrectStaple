@@ -27,7 +27,31 @@ string join(const vector<string> &vec, const char *delim) {
   return res.str().substr(0, res.str().length() - 1); // TODO: find a better way for this
 }
 
-vector<vector<string>> splitWord(string word, vector<string> result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest) {
+bool isShort(vector<string> &vec, const int *min) {
+  if (vec.size() < 3) {
+    return false;
+  }
+  bool isShort = true;
+  for (auto &p: vec) {
+    if (p.length() > *min) {
+      isShort = false;
+      break;
+    }
+  }
+  return isShort;
+}
+
+void cleanup(vector<vector<string>> &results, int *min) {
+  for (unsigned int i = 0; i < results.size(); i++) {
+    if (isShort(results.at(i), min)) {
+      results.erase(results.begin() + i);
+      i--;
+      continue;
+    }
+  }
+}
+
+vector<vector<string>> splitWord(string word, vector<string> result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest, int *min) {
   if (*currentShortest > 0 && result.size() >= *currentShortest) {
     return vector<vector<string>>();
   }
@@ -65,12 +89,15 @@ vector<vector<string>> splitWord(string word, vector<string> result, const int *
       if (newWord.length() > 0) {
         newResult.push_back(newWord);
       }
-      allResults.push_back(newResult);
-      if (newResult.size() < *currentShortest || *currentShortest < 0) {
-        *currentShortest = (int) newResult.size();
+      if (!isShort(newResult, min)) {
+        allResults.push_back(newResult);
+        if (newResult.size() < *currentShortest || *currentShortest < 0) {
+          *currentShortest = (int) newResult.size();
+        }
       }
     } else {
-      res = splitWord(newWord, newResult, n, dictionary, currentShortest);
+      res = splitWord(newWord, newResult, n, dictionary, currentShortest, min);
+      cleanup(res, min);
       allResults.insert(allResults.end(), res.begin(), res.end());
     }
   }
@@ -192,7 +219,7 @@ int main(int argc, char **argv) {
 
     vector<string> res;
     int currentShortest = -1;
-    vector<vector<string>> allResults = splitWord(word, res, &n, &dictionary, &currentShortest);
+    vector<vector<string>> allResults = splitWord(word, res, &n, &dictionary, &currentShortest, &min);
     auto shortest = (int) word.length();
     for (unsigned int i = 0; i < allResults.size(); i++) {
       bool isShort = true;
