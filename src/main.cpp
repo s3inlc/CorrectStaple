@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
 
   // TODO: test config
 
-  unordered_map<string, bool> dictionary;
+  unordered_map<string, bool> dictionary{};
   ifstream dictionaryFile(dictionaryFilename, ios::in);
   if (!dictionaryFile.is_open()) {
     cerr << "Failed to open dictionary file!" << endl;
