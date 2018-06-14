@@ -51,9 +51,9 @@ void cleanup(vector<vector<string>> &results, int *min) {
   }
 }
 
-vector<vector<string>> splitWord(string word, vector<string> &result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest, int *min) {
+void splitWord(string word, vector<string> &result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest, int *min, vector<vector<string>> *allResults) {
   if (*currentShortest > 0 && result.size() >= *currentShortest) {
-    return vector<vector<string>>();
+    return;
   }
 
   string prepare;
@@ -62,47 +62,38 @@ vector<vector<string>> splitWord(string word, vector<string> &result, const int 
     word = word.substr(1, word.length() - 1);
   }
 
-  vector<string> matches;
-  string part;
+  vector<string> newResult;
+  int count = 0;
+  string match;
   for (unsigned long i = word.length(); i >= *n; i--) {
-    part = word.substr(0, i);
-    if (dictionary->find(part) != dictionary->end()) {
-      matches.push_back(part);
+    if (dictionary->find(word.substr(0, i)) != dictionary->end()) {
+      count++;
+      match = word.substr(0, i);
+      newResult = result;
+      if (prepare.length() > 0) {
+        newResult.push_back(prepare);
+      }
+      newResult.push_back(match);
+      if (word.length() - match.length() < *n) {
+        if (word.length() - match.length() > 0) {
+          newResult.push_back(word.substr(match.length()));
+        }
+        if (!isShort(newResult, min)) {
+          allResults->push_back(newResult);
+          if (newResult.size() < *currentShortest || *currentShortest < 0) {
+            *currentShortest = (int) newResult.size();
+          }
+        }
+      } else {
+        splitWord(word.substr(match.length()), newResult, n, dictionary, currentShortest, min, allResults);
+      }
     }
-    if (matches.size() > 2) { // TODO: make it possible to set this value
+    if (count > 2) { // TODO: make it possible to set this value
       break;
     }
   }
 
-  vector<vector<string>> allResults;
-  vector<string> newResult;
-  vector<vector<string>> res;
-  string newWord;
-  for (auto &match : matches) {
-    newResult = result;
-    if (prepare.length() > 0) {
-      newResult.push_back(prepare);
-    }
-    newWord = word.substr(match.length());
-    newResult.push_back(match);
-    if (newWord.length() < *n) {
-      if (newWord.length() > 0) {
-        newResult.push_back(newWord);
-      }
-      if (!isShort(newResult, min)) {
-        allResults.push_back(newResult);
-        if (newResult.size() < *currentShortest || *currentShortest < 0) {
-          *currentShortest = (int) newResult.size();
-        }
-      }
-    } else {
-      res = splitWord(newWord, newResult, n, dictionary, currentShortest, min);
-      cleanup(res, min);
-      allResults.insert(allResults.end(), res.begin(), res.end());
-    }
-  }
-
-  if (matches.empty()) {
+  if (count == 0) {
     newResult = result;
     if (prepare.length() > 0) {
       newResult.push_back(prepare);
@@ -110,10 +101,8 @@ vector<vector<string>> splitWord(string word, vector<string> &result, const int 
     if (word.length() > 0) {
       newResult.push_back(word);
     }
-    allResults.push_back(newResult);
+    allResults->push_back(newResult);
   }
-
-  return allResults;
 }
 
 int main(int argc, char **argv) {
@@ -222,10 +211,13 @@ int main(int argc, char **argv) {
       continue;
     }
     std::transform(word.begin(), word.end(), word.begin(), ::tolower);
+    word.erase(std::remove_if(word.begin(), word.end(), ::isspace), word.end());
 
     vector<string> res;
     int currentShortest = -1;
-    vector<vector<string>> allResults = splitWord(word, res, &n, &dictionary, &currentShortest, &min);
+    vector<vector<string>> allResults;
+    splitWord(word, res, &n, &dictionary, &currentShortest, &min, &allResults);
+    cleanup(allResults, &min);
     auto shortest = (int) word.length();
     for (unsigned int i = 0; i < allResults.size(); i++) {
       bool isShort = true;
