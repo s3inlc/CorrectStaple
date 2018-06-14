@@ -6,6 +6,8 @@
 #include <vector>
 #include <locale>
 #include <sstream>
+#include <iterator>
+#include <algorithm>
 
 using namespace std;
 
