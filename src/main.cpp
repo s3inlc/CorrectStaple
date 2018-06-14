@@ -10,19 +10,26 @@
 using namespace std;
 
 void printHelp() {
-  // TODO: write help function
-  cout << "TODO" << endl;
+  cout << "Correct Staple v1.0 - Help" << endl;
+  cout << "correct-staple -i <input-file> -d <dictionary> [-ch] [-n <N>] [-m <min>] [-x <outfile>]" << endl;
+  cout << "  -i <input-file> File where lines to split are read from" << endl;
+  cout << "  -d <dictionary> Dictionary to read valid words from" << endl;
+  cout << "  -n <N>          Set the minimal length for words" << endl;
+  cout << "  -m <min>        At least one element in combination string must be longer than this value" << endl;
+  cout << "  -x <outfile>    Save lines where no valid combinations is found to this file" << endl;
+  cout << "  -c              Instead of printing the splitted words, apply case toggle for all words" << endl;
+  cout << "  -h              Print Help" << endl;
 }
 
 string join(const vector<string> &vec, const char *delim) {
   stringstream res;
   copy(vec.begin(), vec.end(), ostream_iterator<string>(res, delim));
-  return res.str();
+  return res.str().substr(0, res.str().length() - 1); // TODO: find a better way for this
 }
 
-vector<vector<string>> splitWord(string word, vector<string> &result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest) {
-  if (*currentShortest > 0 && result.size() > *currentShortest) {
-    return vector<vector<string>>(0);
+vector<vector<string>> splitWord(string word, vector<string> result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest) {
+  if (*currentShortest > 0 && result.size() >= *currentShortest) {
+    return vector<vector<string>>();
   }
 
   string prepare;
@@ -47,20 +54,23 @@ vector<vector<string>> splitWord(string word, vector<string> &result, const int 
   }
 
   vector<vector<string>> allResults;
+  vector<string> newResult;
+  vector<vector<string>> res;
+  string newWord;
   for (auto &match : matches) {
-    vector<string> newResult = result;
-    string newWord = word.substr(match.length());
+    newResult = result;
+    newWord = word.substr(match.length());
     newResult.push_back(match);
     if (newWord.length() < *n) {
       if (newWord.length() > 0) {
         newResult.push_back(newWord);
       }
       allResults.push_back(newResult);
-      if (allResults.size() < *currentShortest || *currentShortest < 0) {
-        *currentShortest = static_cast<int>(newResult.size());
+      if (newResult.size() < *currentShortest || *currentShortest < 0) {
+        *currentShortest = (int) newResult.size();
       }
     } else {
-      vector<vector<string>> res = splitWord(newWord, newResult, n, dictionary, currentShortest);
+      res = splitWord(newWord, newResult, n, dictionary, currentShortest);
       allResults.insert(allResults.end(), res.begin(), res.end());
     }
   }
@@ -98,7 +108,7 @@ int main(int argc, char **argv) {
       case 'i': // input file
         inputFilename = optarg;
         break;
-      case 'd': // input file
+      case 'd': // dictionary file
         dictionaryFilename = optarg;
         break;
       case 'n': // set minimal length of elements
@@ -132,7 +142,6 @@ int main(int argc, char **argv) {
 
   // TODO: test config
 
-  // TODO: read dictionary
   unordered_map<string, bool> dictionary;
   ifstream dictionaryFile(dictionaryFilename, ios::in);
   if (!dictionaryFile.is_open()) {
@@ -142,12 +151,17 @@ int main(int argc, char **argv) {
   string line;
   while (!dictionaryFile.eof() && dictionaryFile.is_open()) {
     getline(dictionaryFile, line);
-    if (line.length() < min) {
+    if (!line.empty() && line[line.size() - 1] == '\r') {
+      line = line.substr(0, line.size() - 1);
+    }
+    if (line.length() < n) {
       continue;
     }
     dictionary[line] = true;
   }
   dictionaryFile.close();
+
+  cerr << "Dictionary reading complete!" << endl;
 
   ifstream inputFile(inputFilename.c_str(), ios::in);
   if (!inputFile.is_open()) {
@@ -168,6 +182,9 @@ int main(int argc, char **argv) {
   // loop over all words
   while (!inputFile.eof() && inputFile.is_open()) {
     getline(inputFile, word);
+    if (!word.empty() && word[word.size() - 1] == '\r') {
+      word = word.substr(0, word.size() - 1);
+    }
     if (word.length() == 0) {
       continue;
     }
@@ -176,7 +193,7 @@ int main(int argc, char **argv) {
     vector<string> res;
     int currentShortest = -1;
     vector<vector<string>> allResults = splitWord(word, res, &n, &dictionary, &currentShortest);
-    auto shortest = static_cast<int>(word.length());
+    auto shortest = (int) word.length();
     for (unsigned int i = 0; i < allResults.size(); i++) {
       bool isShort = true;
       for (auto &p: allResults.at(i)) {
@@ -187,10 +204,11 @@ int main(int argc, char **argv) {
       }
       if (isShort) {
         allResults.erase(allResults.begin() + i);
+        i--;
         continue;
       }
       if (allResults[i].size() < shortest) {
-        shortest = static_cast<int>(allResults[i].size());
+        shortest = (int) allResults[i].size();
       }
     }
 
