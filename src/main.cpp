@@ -4,6 +4,8 @@
 #include <fstream>
 #include <unordered_map>
 #include <vector>
+#include <locale>
+#include <sstream>
 
 using namespace std;
 
@@ -12,13 +14,18 @@ void printHelp() {
   cout << "TODO" << endl;
 }
 
-vector<vector<string>>
-splitWord(string word, vector<string> &result, const int *n, unordered_map *dictionary, int *currentShortest) {
-  if (currentShortest > 0 && result.size() > *currentShortest) {
+string join(const vector<string> &vec, const char *delim) {
+  stringstream res;
+  copy(vec.begin(), vec.end(), ostream_iterator<string>(res, delim));
+  return res.str();
+}
+
+vector<vector<string>> splitWord(string word, vector<string> &result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest) {
+  if (*currentShortest > 0 && result.size() > *currentShortest) {
     return vector<vector<string>>(0);
   }
 
-  string prepare = "";
+  string prepare;
   while (isdigit(word[0])) {
     prepare += word[0];
     word = word.substr(1, word.length() - 1);
@@ -29,7 +36,7 @@ splitWord(string word, vector<string> &result, const int *n, unordered_map *dict
 
   vector<string> matches;
   string part;
-  for (unsigned int i = word.length(); i >= *n; i--) {
+  for (unsigned long i = word.length(); i >= *n; i--) {
     part = word.substr(0, i);
     if (dictionary->find(part) != dictionary->end()) {
       matches.push_back(part);
@@ -40,17 +47,17 @@ splitWord(string word, vector<string> &result, const int *n, unordered_map *dict
   }
 
   vector<vector<string>> allResults;
-  for (int i = 0; i < matches.size(); i++) {
+  for (auto &match : matches) {
     vector<string> newResult = result;
-    string newWord = word.substr(matches[i].length());
-    newResult.push_back(matches[i]);
+    string newWord = word.substr(match.length());
+    newResult.push_back(match);
     if (newWord.length() < *n) {
       if (newWord.length() > 0) {
         newResult.push_back(newWord);
       }
       allResults.push_back(newResult);
       if (allResults.size() < *currentShortest || *currentShortest < 0) {
-        *currentShortest = newResult.size();
+        *currentShortest = static_cast<int>(newResult.size());
       }
     } else {
       vector<vector<string>> res = splitWord(newWord, newResult, n, dictionary, currentShortest);
@@ -69,9 +76,9 @@ splitWord(string word, vector<string> &result, const int *n, unordered_map *dict
 }
 
 int main(int argc, char **argv) {
-  string noMatchFilename = "";
-  string inputFilename = "";
-  string dictionaryFilename = "";
+  string noMatchFilename;
+  string inputFilename;
+  string dictionaryFilename;
   int n = 1, min = 2;
   bool printWithCase = false;
   int c;
@@ -140,6 +147,7 @@ int main(int argc, char **argv) {
     }
     dictionary[line] = true;
   }
+  dictionaryFile.close();
 
   ifstream inputFile(inputFilename.c_str(), ios::in);
   if (!inputFile.is_open()) {
@@ -157,11 +165,70 @@ int main(int argc, char **argv) {
   }
 
   string word;
+  // loop over all words
   while (!inputFile.eof() && inputFile.is_open()) {
     getline(inputFile, word);
     if (word.length() == 0) {
       continue;
     }
+    std::transform(word.begin(), word.end(), word.begin(), ::tolower);
+
+    vector<string> res;
+    int currentShortest = -1;
+    vector<vector<string>> allResults = splitWord(word, res, &n, &dictionary, &currentShortest);
+    auto shortest = static_cast<int>(word.length());
+    for (unsigned int i = 0; i < allResults.size(); i++) {
+      bool isShort = true;
+      for (auto &p: allResults.at(i)) {
+        if (p.length() > min) {
+          isShort = false;
+          break;
+        }
+      }
+      if (isShort) {
+        allResults.erase(allResults.begin() + i);
+        continue;
+      }
+      if (allResults[i].size() < shortest) {
+        shortest = static_cast<int>(allResults[i].size());
+      }
+    }
+
+    bool printed = false;
+    locale loc;
+    for (auto &result: allResults) {
+      if (result.size() > shortest) {
+        continue;
+      }
+      printed = true;
+      if (!printWithCase) {
+        cout << join(result, " ") << endl;
+      } else {
+        for (int i = 0; i < pow(2, result.size()); i++) {
+          string output;
+          int j = i;
+          for (auto &element: result) {
+            if (j % 2 == 1) {
+              element[0] = toupper(element[0], loc);
+              output += element;
+            } else {
+              output += element;
+            }
+            j >>= 1;
+          }
+          cout << output << endl;
+        }
+      }
+    }
+
+    if (!printed && noMatchFilename.length() > 0) {
+      noMatchFile << word << endl;
+    }
+  }
+
+  inputFile.close();
+  if (noMatchFilename.length() > 0) {
+    noMatchFile.close();
   }
 
   return 0;
