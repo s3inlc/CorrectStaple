@@ -51,7 +51,7 @@ void cleanup(vector<vector<string>> &results, int *min) {
   }
 }
 
-vector<vector<string>> splitWord(string word, vector<string> result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest, int *min) {
+vector<vector<string>> splitWord(string word, vector<string> &result, const int *n, unordered_map<string, bool> *dictionary, int *currentShortest, int *min) {
   if (*currentShortest > 0 && result.size() >= *currentShortest) {
     return vector<vector<string>>();
   }
@@ -60,9 +60,6 @@ vector<vector<string>> splitWord(string word, vector<string> result, const int *
   while (isdigit(word[0])) {
     prepare += word[0];
     word = word.substr(1, word.length() - 1);
-  }
-  if (prepare.length() > 0) {
-    result.push_back(prepare);
   }
 
   vector<string> matches;
@@ -83,6 +80,9 @@ vector<vector<string>> splitWord(string word, vector<string> result, const int *
   string newWord;
   for (auto &match : matches) {
     newResult = result;
+    if (prepare.length() > 0) {
+      newResult.push_back(prepare);
+    }
     newWord = word.substr(match.length());
     newResult.push_back(match);
     if (newWord.length() < *n) {
@@ -103,10 +103,14 @@ vector<vector<string>> splitWord(string word, vector<string> result, const int *
   }
 
   if (matches.empty()) {
-    if (word.length() > 0) {
-      result.push_back(word);
+    newResult = result;
+    if (prepare.length() > 0) {
+      newResult.push_back(prepare);
     }
-    allResults.push_back(result);
+    if (word.length() > 0) {
+      newResult.push_back(word);
+    }
+    allResults.push_back(newResult);
   }
 
   return allResults;
@@ -206,6 +210,8 @@ int main(int argc, char **argv) {
   }
 
   string word;
+  stringstream buffer;
+  int bufferCount = 0;
   // loop over all words
   while (!inputFile.eof() && inputFile.is_open()) {
     getline(inputFile, word);
@@ -247,7 +253,13 @@ int main(int argc, char **argv) {
       }
       printed = true;
       if (!printWithCase) {
-        cout << join(result, " ") << endl;
+        buffer << join(result, " ") << endl;
+        bufferCount++;
+        if(bufferCount > 100){
+          cout << buffer.str();
+          buffer.str("");
+          bufferCount = 0;
+        }
       } else {
         for (int i = 0; i < pow(2, result.size()); i++) {
           string output;
@@ -269,6 +281,10 @@ int main(int argc, char **argv) {
     if (!printed && noMatchFilename.length() > 0) {
       noMatchFile << word << endl;
     }
+  }
+
+  if(bufferCount > 0){
+    cout << buffer.str();
   }
 
   inputFile.close();
